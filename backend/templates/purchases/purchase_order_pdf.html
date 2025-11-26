@@ -1,0 +1,204 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ _('Purchase Order') }} {{ purchase_order.order_number }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            direction: {% if company.country == 'SA' %}rtl{% else %}ltr{% endif %};
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .logo {
+            width: 150px;
+        }
+        .company-info {
+            text-align: {% if company.country == 'SA' %}right{% else %}left{% endif %};
+        }
+        .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .info-block {
+            width: 48%;
+        }
+        .info-block h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: {% if company.country == 'SA' %}right{% else %}left{% endif %};
+        }
+        th {
+            background-color: #f2f2f2f;
+            font-weight: bold;
+        }
+        .totals {
+            display: flex;
+            justify-content: {% if company.country == 'SA' %}flex-end{% else %}flex-start{% endif %};
+            margin-top: 20px;
+        }
+        .totals table {
+            width: 50%;
+            border: none;
+        }
+        .totals th, .totals td {
+            border: none;
+            padding: 5px 12px;
+        }
+        .totals th {
+            text-align: {% if company.country == 'SA' %}right{% else %}left{% endif %};
+        }
+        .totals td {
+            text-align: {% if company.country == 'SA' %}right{% else %}right{% endif %};
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            {% if company.logo %}
+                <img src="{{ company.logo.url }}" alt="{{ company.name }}" style="max-width: 100%;">
+            {% else %}
+                <h2>{{ company.name }}</h2>
+            {% endif %}
+        </div>
+        <div class="company-info">
+            <p><strong>{{ _('Company') }}:</strong> {{ company.name }}</p>
+            <p><strong>{{ _('Address') }}:</strong> {{ company.address }}</p>
+            <p><strong>{{ _('Phone') }}:</strong> {{ company.phone }}</p>
+            <p><strong>{{ _('Email') }}:</strong> {{ company.email }}</p>
+            {% if company.tax_register %}
+                <p><strong>{{ _('Tax Register') }}:</strong> {{ company.tax_register }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="title">
+        {{ _('Purchase Order') }}
+    </div>
+
+    <div class="info-section">
+        <div class="info-block">
+            <h3>{{ _('Purchase Order Information') }}</h3>
+            <p><strong>{{ _('Order Number') }}:</strong> {{ purchase_order.order_number }}</p>
+            <p><strong>{{ _('Order Date') }}:</strong> {{ purchase_order.order_date|date:"Y-m-d" }}</p>
+            <p><strong>{{ _('Expected Date') }}:</strong> {{ purchase_order.expected_date|date:"Y-m-d" }}</p>
+            <p><strong>{{ _('Status') }}:</strong> {{ purchase_order.get_status_display }}</p>
+        </div>
+        <div class="info-block">
+            <h3>{{ _('Supplier Information') }}</h3>
+            <p><strong>{{ _('Name') }}:</strong> {{ supplier.name }}</p>
+            {% if supplier.address %}
+                <p><strong>{{ _('Address') }}:</strong> {{ supplier.address }}</p>
+            {% endif %}
+            {% if supplier.phone %}
+                <p><strong>{{ _('Phone') }}:</strong> {{ supplier.phone }}</p>
+            {% endif %}
+            {% if supplier.email %}
+                <p><strong>{{ _('Email') }}:</strong> {{ supplier.email }}</p>
+            {% endif %}
+            {% if supplier.contact_person %}
+                <p><strong>{{ _('Contact Person') }}:</strong> {{ supplier.contact_person }}</p>
+            {% endif %}
+            {% if supplier.payment_terms %}
+                <p><strong>{{ _('Payment Terms') }}:</strong> {{ supplier.payment_terms }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>{{ _('Description') }}</th>
+                <th>{{ _('Quantity') }}</th>
+                <th>{{ _('Unit Price') }}</th>
+                <th>{{ _('Discount') }} (%)</th>
+                <th>{{ _('Tax') }} (%)</th>
+                <th>{{ _('Total') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.unit_price }}</td>
+                    <td>{{ item.discount_percentage }}</td>
+                    <td>{{ item.tax_rate }}</td>
+                    <td>{{ item.total }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <table>
+            <tr>
+                <th>{{ _('Subtotal') }}</th>
+                <td>{{ purchase_order.subtotal }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Tax Amount') }}</th>
+                <td>{{ purchase_order.tax_amount }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Discount Amount') }}</th>
+                <td>{{ purchase_order.discount_amount }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Total Amount') }}</th>
+                <td>{{ purchase_order.total_amount }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {% if purchase_order.notes %}
+        <div>
+            <h3>{{ _('Notes') }}</h3>
+            <p>{{ purchase_order.notes }}</p>
+        </div>
+    {% endif %}
+
+    {% if purchase_order.terms %}
+        <div>
+            <h3>{{ _('Terms and Conditions') }}</h3>
+            <p>{{ purchase_order.terms }}</p>
+        </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>{{ _('Thank you for your business!') }}</p>
+        <p>{{ _('This is a computer-generated purchase order and requires no signature.') }}</p>
+    </div>
+</body>
+</html>

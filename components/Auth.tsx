@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User, Lock, Mail, ArrowRight, Loader2, Globe, MessageCircle } from 'lucide-react';
+import { User, Lock, Mail, ArrowRight, Loader2, Globe, MessageCircle, Sparkles, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../i18n';
 import { User as UserType } from '../types';
 
@@ -36,142 +36,157 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Accents */}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#f8fafc]">
+      {/* Animated Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 -left-20 w-96 h-96 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-0 -right-20 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary-300/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-300/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-pink-300/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
       </div>
 
-      {/* Language Switcher */}
-      <div className="absolute top-6 end-6 z-10">
+      {/* Language Switcher (Floating) */}
+      <div className="absolute top-6 end-6 z-20">
         <button 
           onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded-full transition-all border border-transparent hover:border-gray-200"
+          className="glass flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 hover:text-primary-700 rounded-full transition-all shadow-sm hover:shadow-md"
         >
           <Globe className="w-4 h-4" />
           <span>{language === 'en' ? 'العربية' : 'English'}</span>
         </button>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="flex justify-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-2xl shadow-primary-600/30 transform rotate-3 hover:rotate-0 transition-all duration-500">
-            Z
-          </div>
+      {/* Main Glass Card */}
+      <div className="relative z-10 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-8 m-4">
+        
+        {/* Left Side: Branding (Hidden on Mobile) */}
+        <div className="hidden md:flex flex-col justify-center p-10 glass rounded-3xl border-0 md:border-r-0 md:rounded-e-none relative overflow-hidden">
+           <div className="absolute inset-0 bg-gradient-to-br from-primary-600/90 to-teal-900/90 z-0"></div>
+           <div className="relative z-10 text-white">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white font-bold text-3xl mb-8 shadow-inner">
+                Z
+              </div>
+              <h1 className="text-5xl font-bold mb-4 leading-tight">
+                {t('app_name')}
+              </h1>
+              <p className="text-primary-100 text-lg mb-8 leading-relaxed opacity-90">
+                {language === 'ar' 
+                  ? 'نظام إدارة موارد المؤسسات الذكي، مصمم لنمو أعمالك في الشرق الأوسط.' 
+                  : 'The intelligent ERP system designed for your business growth in the MENA region.'}
+              </p>
+              
+              <div className="space-y-4">
+                 <div className="flex items-center gap-3 bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/10">
+                    <Sparkles className="w-5 h-5 text-yellow-300" />
+                    <span className="font-medium">{t('ai_assistant_title')}</span>
+                 </div>
+                 <div className="flex items-center gap-3 bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/10">
+                    <ShieldCheck className="w-5 h-5 text-green-300" />
+                    <span className="font-medium">{t('manage_billing')}</span>
+                 </div>
+              </div>
+           </div>
+           
+           {/* Decorative Circles */}
+           <div className="absolute bottom-[-50px] right-[-50px] w-40 h-40 bg-white/10 rounded-full blur-xl"></div>
         </div>
-        <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900 font-sans">
-          {isLogin ? t('login_title') : t('register_title')}
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-500">
-          {isLogin ? t('login_subtitle') : t('register_subtitle')}
-        </p>
-      </div>
 
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-white py-8 px-4 shadow-soft rounded-2xl sm:px-10 border border-white/50 backdrop-blur-sm">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+        {/* Right Side: Form */}
+        <div className="glass rounded-3xl md:rounded-s-none p-8 sm:p-12 shadow-2xl flex flex-col justify-center">
+          <div className="mb-8 text-center md:text-start">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              {isLogin ? t('login_title') : t('register_title')}
+            </h2>
+            <p className="text-gray-500">
+              {isLogin ? t('login_subtitle') : t('register_subtitle')}
+            </p>
+          </div>
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {!isLogin && (
-              <div>
+              <div className="space-y-1">
                 <label className="block text-sm font-semibold text-gray-700">{t('full_name')}</label>
-                <div className="mt-1 relative">
+                <div className="relative group">
                   <div className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+                    <User className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                   </div>
                   <input
                     type="text"
                     required={!isLogin}
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="block w-full appearance-none rounded-xl border-gray-200 bg-gray-50 px-3 py-3 ps-10 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-primary-500 transition-all sm:text-sm"
+                    className="block w-full rounded-xl border-gray-200 bg-gray-50/50 px-3 py-3.5 ps-10 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 transition-all"
+                    placeholder={language === 'ar' ? 'الاسم الكامل' : 'Full Name'}
                   />
                 </div>
               </div>
             )}
 
-            <div>
+            <div className="space-y-1">
               <label className="block text-sm font-semibold text-gray-700">{t('email_address')}</label>
-              <div className="mt-1 relative">
+              <div className="relative group">
                 <div className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                 </div>
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
-                  className="block w-full appearance-none rounded-xl border-gray-200 bg-gray-50 px-3 py-3 ps-10 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-primary-500 transition-all sm:text-sm"
+                  className="block w-full rounded-xl border-gray-200 bg-gray-50/50 px-3 py-3.5 ps-10 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 transition-all"
+                  placeholder="name@company.com"
                 />
               </div>
             </div>
 
-            <div>
+            <div className="space-y-1">
               <label className="block text-sm font-semibold text-gray-700">{t('password')}</label>
-              <div className="mt-1 relative">
+              <div className="relative group">
                 <div className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                 </div>
                 <input
                   type="password"
                   required
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
-                  className="block w-full appearance-none rounded-xl border-gray-200 bg-gray-50 px-3 py-3 ps-10 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-primary-500 transition-all sm:text-sm"
+                  className="block w-full rounded-xl border-gray-200 bg-gray-50/50 px-3 py-3.5 ps-10 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 transition-all"
+                  placeholder="••••••••"
                 />
               </div>
             </div>
 
-            <div>
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full justify-center items-center gap-2 rounded-xl border border-transparent bg-primary-600 py-3 px-4 text-sm font-bold text-white shadow-lg shadow-primary-600/30 hover:bg-primary-700 hover:shadow-primary-600/40 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-0.5"
+                className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 py-3.5 text-white shadow-lg shadow-primary-500/30 transition-all hover:scale-[1.01] hover:shadow-primary-500/40 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    {isLogin ? t('login_btn') : t('register_btn')}
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
+                <div className="flex items-center justify-center gap-2 font-bold">
+                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? t('login_btn') : t('register_btn'))}
+                   {!loading && <ArrowRight className="w-5 h-5" />}
+                </div>
               </button>
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-gray-500">{t('auth_footer')}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-3">
-              <button
+          <div className="mt-6 text-center">
+             <p className="text-sm text-gray-500 mb-3">{t('auth_footer')}</p>
+             <button
                 onClick={() => setIsLogin(!isLogin)}
-                className="flex w-full justify-center rounded-xl border border-gray-200 bg-white py-3 px-4 text-sm font-semibold text-gray-600 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                className="text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline transition-all"
               >
                 {isLogin ? t('toggle_register') : t('toggle_login')}
               </button>
-            </div>
           </div>
         </div>
+      </div>
 
-        {/* Developer Credit Footer */}
-        <div className="mt-8 text-center animate-fade-in">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-2">{t('dev_by')}</p>
-            <div className="inline-flex items-center gap-3 bg-white/60 backdrop-blur px-4 py-2 rounded-full border border-white/50 shadow-sm">
-                <span className="font-bold text-gray-700">{t('dev_name')}</span>
-                <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                <div className="flex items-center gap-1 text-green-600 font-mono text-xs font-semibold">
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span dir="ltr">0122 825 2096</span>
-                </div>
-            </div>
-        </div>
+      {/* Footer Credits */}
+      <div className="absolute bottom-4 text-center w-full z-10 animate-fade-in-up">
+         <div className="inline-flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/40 shadow-sm">
+            <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">{t('dev_by')}</span>
+            <span className="text-sm font-bold text-gray-800">{t('dev_name')}</span>
+         </div>
       </div>
     </div>
   );

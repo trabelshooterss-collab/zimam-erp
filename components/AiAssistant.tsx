@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Loader2, RefreshCw, Database, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, RefreshCw, Database, Sparkles, Mic, MicOff } from 'lucide-react';
 import { useLanguage } from '../i18n';
 import { GeminiService } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
@@ -17,6 +17,7 @@ const AiAssistant: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [chatSession, setChatSession] = useState<any>(null);
   const [mode, setMode] = useState<'general' | 'data'>('general'); // New Mode Toggle
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -46,6 +47,44 @@ const AiAssistant: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Speech recognition is not supported in this browser. Please use Chrome.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    // @ts-ignore
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.lang = language === 'ar' ? 'ar-SA' : 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(prev => (prev ? prev + ' ' : '') + transcript);
+    };
+
+    recognition.start();
+  };
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -195,12 +234,24 @@ const AiAssistant: React.FC = () => {
 
         <div className="p-4 bg-white border-t border-gray-200">
           <form onSubmit={handleSend} className="flex gap-2 relative">
+            <button
+                type="button"
+                onClick={handleVoiceInput}
+                className={`absolute start-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${
+                    isListening 
+                    ? 'bg-red-100 text-red-600 animate-pulse' 
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                }`}
+                title="Dictate message"
+            >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={t('chat_placeholder')}
-              className={`flex-1 rounded-lg border-gray-300 py-3 px-4 pe-12 ${mode === 'data' ? 'focus:border-indigo-500 focus:ring-indigo-500' : 'focus:border-primary-500 focus:ring-primary-500'}`}
+              placeholder={isListening ? (language === 'ar' ? 'جاري الاستماع...' : 'Listening...') : t('chat_placeholder')}
+              className={`flex-1 rounded-lg border-gray-300 py-3 px-4 ps-12 pe-12 ${mode === 'data' ? 'focus:border-indigo-500 focus:ring-indigo-500' : 'focus:border-primary-500 focus:ring-primary-500'}`}
               disabled={isLoading}
             />
             <button 

@@ -1,0 +1,246 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ _('Invoice') }} {{ invoice.invoice_number }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            direction: {% if company.country == 'SA' %}rtl{% else %}ltr{% endif %};
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .logo {
+            width: 150px;
+        }
+        .company-info {
+            text-align: {% if company.country == 'SA' %}right{% else %}left{% endif %};
+        }
+        .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .info-block {
+            width: 48%;
+        }
+        .info-block h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: {% if company.country == 'SA' %}right{% else %}left{% endif %};
+        }
+        th {
+            background-color: #f2f2f2f;
+            font-weight: bold;
+        }
+        .totals {
+            display: flex;
+            justify-content: {% if company.country == 'SA' %}flex-end{% else %}flex-start{% endif %};
+            margin-top: 20px;
+        }
+        .totals table {
+            width: 50%;
+            border: none;
+        }
+        .totals th, .totals td {
+            border: none;
+            padding: 5px 12px;
+        }
+        .totals th {
+            text-align: {% if company.country == 'SA' %}right{% else %}left{% endif %};
+        }
+        .totals td {
+            text-align: {% if company.country == 'SA' %}right{% else %}right{% endif %};
+            font-weight: bold;
+        }
+        .qr-code {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .payments {
+            margin-top: 30px;
+        }
+        .payments table {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            {% if company.logo %}
+                <img src="{{ company.logo.url }}" alt="{{ company.name }}" style="max-width: 100%;">
+            {% else %}
+                <h2>{{ company.name }}</h2>
+            {% endif %}
+        </div>
+        <div class="company-info">
+            <p><strong>{{ _('Company') }}:</strong> {{ company.name }}</p>
+            <p><strong>{{ _('Address') }}:</strong> {{ company.address }}</p>
+            <p><strong>{{ _('Phone') }}:</strong> {{ company.phone }}</p>
+            <p><strong>{{ _('Email') }}:</strong> {{ company.email }}</p>
+            {% if company.tax_register %}
+                <p><strong>{{ _('Tax Register') }}:</strong> {{ company.tax_register }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="title">
+        {{ _('Invoice') }}
+    </div>
+
+    <div class="info-section">
+        <div class="info-block">
+            <h3>{{ _('Invoice Information') }}</h3>
+            <p><strong>{{ _('Invoice Number') }}:</strong> {{ invoice.invoice_number }}</p>
+            <p><strong>{{ _('Invoice Date') }}:</strong> {{ invoice.date|date:"Y-m-d" }}</p>
+            <p><strong>{{ _('Due Date') }}:</strong> {{ invoice.due_date|date:"Y-m-d" }}</p>
+        </div>
+        <div class="info-block">
+            <h3>{{ _('Customer Information') }}</h3>
+            <p><strong>{{ _('Name') }}:</strong> {{ customer.name }}</p>
+            {% if customer.address %}
+                <p><strong>{{ _('Address') }}:</strong> {{ customer.address }}</p>
+            {% endif %}
+            {% if customer.phone %}
+                <p><strong>{{ _('Phone') }}:</strong> {{ customer.phone }}</p>
+            {% endif %}
+            {% if customer.email %}
+                <p><strong>{{ _('Email') }}:</strong> {{ customer.email }}</p>
+            {% endif %}
+            {% if customer.tax_register %}
+                <p><strong>{{ _('Tax Register') }}:</strong> {{ customer.tax_register }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>{{ _('Description') }}</th>
+                <th>{{ _('Quantity') }}</th>
+                <th>{{ _('Unit Price') }}</th>
+                <th>{{ _('Discount') }} (%)</th>
+                <th>{{ _('Tax') }} (%)</th>
+                <th>{{ _('Total') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.unit_price }}</td>
+                    <td>{{ item.discount_percentage }}</td>
+                    <td>{{ item.tax_rate }}</td>
+                    <td>{{ item.total }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <table>
+            <tr>
+                <th>{{ _('Subtotal') }}</th>
+                <td>{{ invoice.subtotal }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Tax Amount') }}</th>
+                <td>{{ invoice.tax_amount }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Discount Amount') }}</th>
+                <td>{{ invoice.discount_amount }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Total Amount') }}</th>
+                <td>{{ invoice.total_amount }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Paid Amount') }}</th>
+                <td>{{ invoice.paid_amount }}</td>
+            </tr>
+            <tr>
+                <th>{{ _('Balance Due') }}</th>
+                <td>{{ invoice.balance_due }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {% if invoice.qr_code_data %}
+        <div class="qr-code">
+            <h3>{{ _('QR Code') }}</h3>
+            <img src="data:image/png;base64,{{ invoice.qr_code_data }}" alt="{{ _('QR Code') }}">
+        </div>
+    {% endif %}
+
+    {% if payments %}
+        <div class="payments">
+            <h3>{{ _('Payments') }}</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ _('Date') }}</th>
+                        <th>{{ _('Payment Method') }}</th>
+                        <th>{{ _('Reference') }}</th>
+                        <th>{{ _('Amount') }}</th>
+                        <th>{{ _('Notes') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.date|date:"Y-m-d" }}</td>
+                            <td>{{ payment.get_payment_method_display }}</td>
+                            <td>{{ payment.reference }}</td>
+                            <td>{{ payment.amount }}</td>
+                            <td>{{ payment.notes }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% if invoice.notes %}
+        <div>
+            <h3>{{ _('Notes') }}</h3>
+            <p>{{ invoice.notes }}</p>
+        </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>{{ _('Thank you for your business!') }}</p>
+        <p>{{ _('This is a computer-generated invoice and requires no signature.') }}</p>
+    </div>
+</body>
+</html>

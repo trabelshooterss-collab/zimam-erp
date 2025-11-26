@@ -131,7 +131,16 @@ export interface VisualAuditResult {
 }
 
 export interface VoiceCommandAction {
-  intent: 'ADD_TO_CART' | 'CHECK_STOCK' | 'NAVIGATE' | 'UNKNOWN';
+  intent: 'ADD_TO_CART' | 'CHECK_STOCK' | 'NAVIGATE' | 'CHECKOUT' | 'UPDATE_QTY' | 'REMOVE_ITEM' | 'UNKNOWN';
   data: any;
   response: string;
+}
+
+// --- Offline Sync Types ---
+
+export interface SyncAction {
+  id: string;
+  type: 'PROCESS_ORDER' | 'ADJUST_STOCK' | 'RECEIVE_STOCK' | 'REFUND_INVOICE' | 'ADD_PERSON';
+  payload: any;
+  timestamp: number;
 }

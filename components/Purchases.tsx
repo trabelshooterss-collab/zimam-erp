@@ -1,144 +1,99 @@
-
 import React, { useState } from 'react';
-import { Plus, Filter, Download, ShoppingBag, MessageSquare, Copy, Loader2 } from 'lucide-react';
-import { useLanguage } from '../i18n';
+import { Plus, Search, Filter, Download, Trash2, Edit } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { PurchaseOrder } from '../types';
-import { GeminiService } from '../services/geminiService';
 
-const Purchases: React.FC = () => {
-  const { t, language } = useLanguage();
-  const { purchaseOrders, people, products, createPurchaseOrder, receiveStock } = useStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPO, setNewPO] = useState<{ supplierId: string, productId: string, qty: number }>({
-    supplierId: '', productId: '', qty: 10
-  });
+const Purchases = () => {
+  const { invoices = [], addInvoice } = useStore(); // ضمنا إنها مصفوفة حتى لو فاضية
+  const [showAddModal, setShowAddModal] = useState(false);
 
-  // Negotiator State
-  const [negotiating, setNegotiating] = useState<string | null>(null);
-  const [negotiationDraft, setNegotiationDraft] = useState<{id: string, text: string} | null>(null);
-
-  const handleNegotiate = async (po: PurchaseOrder) => {
-    setNegotiating(po.id);
-    try {
-      // Assuming single item PO for MVP simplicity
-      const item = po.items[0]; 
-      const draft = await GeminiService.draftNegotiation(po.supplierName, item.productName, item.cost, language);
-      setNegotiationDraft({ id: po.id, text: draft });
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setNegotiating(null);
-    }
-  };
-
-  const handleCreatePO = () => {
-    if (!newPO.supplierId || !newPO.productId) return;
-    const supplier = people.find(p => p.id === newPO.supplierId);
-    const product = products.find(p => p.id === newPO.productId);
-    if (!supplier || !product) return;
-
-    const po: PurchaseOrder = {
-        id: `PO-${Date.now().toString().slice(-4)}`,
-        supplierId: supplier.id,
-        supplierName: supplier.name,
-        date: new Date().toISOString().split('T')[0],
-        expectedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        items: [{ productId: product.id, productName: product.name, qty: newPO.qty, cost: product.costPrice }],
-        totalAmount: product.costPrice * newPO.qty,
-        status: 'Ordered'
-    };
-    createPurchaseOrder(po);
-    setIsModalOpen(false);
-  };
-
-  const suppliers = people.filter(p => p.type === 'supplier');
+  // الحل السحري: علامة الاستفهام والـ OR operator
+  // ده بيمنع الصفحة تقع لو البيانات لسه بتحمل
+  const purchaseInvoices = invoices?.filter(inv => inv.type === 'PURCHASE') || [];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('purchases_title')}</h1>
-          <p className="text-gray-500">{t('purchases_desc')}</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">المشتريات</h1>
+          <p className="text-slate-600 dark:text-slate-400">إدارة فواتير الشراء والموردين</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 flex items-center gap-2">
-          <Plus className="w-4 h-4" /> {t('new_po')}
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="btn btn-primary flex items-center gap-2 justify-center"
+        >
+          <Plus className="w-4 h-4" />
+          فاتورة شراء جديدة
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('po_id')}</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('supplier')}</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('amount')}</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('status')}</th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-end">{t('actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {purchaseOrders.map((po) => (
-              <React.Fragment key={po.id}>
-                <tr className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-2"><ShoppingBag className="w-4 h-4 text-gray-400" />{po.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{po.supplierName}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900">{po.totalAmount.toLocaleString()} {t('currency_sar')}</td>
-                    <td className="px-6 py-4"><span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-bold">{po.status}</span></td>
-                    <td className="px-6 py-4 text-end">
-                    {po.status === 'Ordered' && (
-                        <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => handleNegotiate(po)} disabled={negotiating === po.id} className="text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors">
-                                {negotiating === po.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageSquare className="w-3 h-3" />}
-                                {t('negotiate')}
-                            </button>
-                            <button onClick={() => receiveStock(po.id)} className="text-blue-600 hover:text-blue-800 border border-blue-200 bg-blue-50 px-2 py-1 rounded text-xs font-bold">
-                                {t('status_received_action')}
-                            </button>
-                        </div>
-                    )}
-                    </td>
-                </tr>
-                {negotiationDraft && negotiationDraft.id === po.id && (
-                    <tr>
-                        <td colSpan={5} className="px-6 py-4 bg-amber-50/50">
-                            <div className="bg-white border border-amber-200 rounded-lg p-4 shadow-sm">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h4 className="text-sm font-bold text-amber-800">{t('negotiation_draft')}</h4>
-                                    <button onClick={() => { navigator.clipboard.writeText(negotiationDraft.text); setNegotiationDraft(null); }} className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-xs">
-                                        <Copy className="w-3 h-3" /> {t('copy_email')}
-                                    </button>
-                                </div>
-                                <p className="text-sm text-gray-600 whitespace-pre-wrap">{negotiationDraft.text}</p>
-                            </div>
-                        </td>
-                    </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Create PO Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md">
-                <h2 className="text-lg font-bold mb-4">{t('new_po')}</h2>
-                <select className="w-full mb-3 border rounded p-2" value={newPO.supplierId} onChange={e => setNewPO({...newPO, supplierId: e.target.value})}>
-                    <option value="">Select Supplier</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-                <select className="w-full mb-3 border rounded p-2" value={newPO.productId} onChange={e => setNewPO({...newPO, productId: e.target.value})}>
-                    <option value="">Select Product</option>
-                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <input type="number" className="w-full mb-4 border rounded p-2" placeholder="Qty" value={newPO.qty} onChange={e => setNewPO({...newPO, qty: parseInt(e.target.value)})} />
-                <button onClick={handleCreatePO} className="w-full bg-primary-600 text-white py-2 rounded">{t('create')}</button>
-                <button onClick={() => setIsModalOpen(false)} className="w-full mt-2 text-gray-500 py-2">{t('cancel')}</button>
-            </div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+        {/* Header & Search */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="بحث في المشتريات..." 
+              className="w-full pl-4 pr-10 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button className="p-2 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+              <Filter className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            </button>
+            <button className="p-2 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+              <Download className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-right">
+            <thead className="bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 font-medium">
+              <tr>
+                <th className="p-4">رقم الفاتورة</th>
+                <th className="p-4">المورد</th>
+                <th className="p-4">التاريخ</th>
+                <th className="p-4">المبلغ</th>
+                <th className="p-4">الحالة</th>
+                <th className="p-4">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+              {purchaseInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                    لا توجد فواتير مشتريات حتى الآن
+                  </td>
+                </tr>
+              ) : (
+                purchaseInvoices.map((invoice) => (
+                  <tr key={invoice.id} className="hover:bg-slate-50 dark:hover:bg-slate-750">
+                    <td className="p-4 font-medium">#{invoice.id.slice(0, 8)}</td>
+                    <td className="p-4">{invoice.customerName || 'مورد عام'}</td>
+                    <td className="p-4">{new Date(invoice.date).toLocaleDateString('ar-EG')}</td>
+                    <td className="p-4 font-bold text-slate-900 dark:text-white">
+                      {Number(invoice.totalAmount).toLocaleString()} ر.س
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        invoice.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {invoice.status === 'PAID' ? 'مدفوع' : 'معلق'}
+                      </span>
+                    </td>
+                    <td className="p-4 flex gap-2">
+                      <button className="p-1 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
+                      <button className="p-1 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

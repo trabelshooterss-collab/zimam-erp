@@ -10,9 +10,11 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
       },
       plugins: [react()],
+      // Do NOT expose production API keys to the browser. Keep sensitive keys
+      // in backend environment variables and proxy requests via an API endpoint.
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        // expose non-sensitive flags or placeholders only
+        'process.env.NODE_ENV': JSON.stringify(mode),
       },
       resolve: {
         alias: {

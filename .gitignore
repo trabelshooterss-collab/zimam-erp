@@ -1,4 +1,22 @@
-# Logs
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+/.pytest_cache
+/backend/venv
+pass.txt
+.DS_Store
+/.vscode
+/.idea
+/.env.example# Logs
 logs
 *.log
 npm-debug.log*

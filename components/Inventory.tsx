@@ -1,288 +1,138 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Package, Globe, Edit, X, Camera, TrendingUp, Loader2, CheckCircle } from 'lucide-react';
-import { GeminiService } from '../services/geminiService';
-import { Product, InventoryPrediction, VisualAuditResult } from '../types';
-import { useLanguage } from '../i18n';
-import { useStore } from '../context/StoreContext';
-import ReactMarkdown from 'react-markdown';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Plus, Edit3, Trash2, Package, X, Save, Image as ImageIcon, Printer, Barcode, ClipboardList } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { useInventory, Product } from '../context/InventoryContext';
 
 const Inventory: React.FC = () => {
-  const { products, adjustStock, updateProductPrice } = useStore();
-  const [predictions, setPredictions] = useState<Record<string, InventoryPrediction>>({});
-  const [loading, setLoading] = useState(false);
-  const { t, language } = useLanguage();
-  
-  // Adjustment State
-  const [adjModal, setAdjModal] = useState<{isOpen: boolean, product: Product | null}>({isOpen: false, product: null});
-  const [adjQty, setAdjQty] = useState(0);
-  const [adjReason, setAdjReason] = useState('Damage');
+  const { theme } = useTheme();
+  const { products, addProduct, updateProduct, deleteProduct } = useInventory();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState({ name: '', price: '', stock: '', category: 'electronics', image: '' });
 
-  // Genius Features State
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [auditResult, setAuditResult] = useState<VisualAuditResult | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedAuditProduct, setSelectedAuditProduct] = useState<Product | null>(null);
-  
-  const [priceCheckLoading, setPriceCheckLoading] = useState<string | null>(null);
-  const [priceAnalysis, setPriceAnalysis] = useState<{id: string, text: string} | null>(null);
-  const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null);
-
-  useEffect(() => {
-    setPredictions({});
-  }, [language]);
-
-  const runAiPrediction = async () => {
-    setLoading(true);
-    try {
-      const results = await GeminiService.predictInventoryNeeds(products, language);
-      const predMap: Record<string, InventoryPrediction> = {};
-      results.forEach(r => {
-        const prod = products.find(p => p.name === r.productName);
-        if(prod) predMap[prod.id] = r;
-      });
-      setPredictions(predMap);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+  const openAddModal = () => {
+    setEditingProduct(null);
+    setFormData({ name: '', price: '', stock: '', category: 'electronics', image: '' });
+    setIsModalOpen(true);
   };
 
-  const handleVisualAudit = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if(!e.target.files?.[0] || !selectedAuditProduct) return;
-    
-    setAuditLoading(true);
-    setAuditResult(null);
-    try {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        if(evt.target?.result) {
-           const base64 = (evt.target.result as string).split(',')[1];
-           const result = await GeminiService.analyzeShelfImage(base64, selectedAuditProduct.currentStock, selectedAuditProduct.name, language);
-           setAuditResult(result);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setAuditLoading(false);
-    }
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({ name: product.name, price: product.price.toString(), stock: product.stock.toString(), category: product.category, image: product.image });
+    setIsModalOpen(true);
   };
 
-  const applyAuditCount = () => {
-    if(selectedAuditProduct && auditResult) {
-        adjustStock(selectedAuditProduct.id, auditResult.detectedCount, 'Visual Audit Correction');
-        setAuditResult(null);
-        setSelectedAuditProduct(null);
-    }
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const productData = {
+      name: formData.name,
+      price: Number(formData.price),
+      stock: Number(formData.stock),
+      category: formData.category,
+      image: formData.image || 'https://via.placeholder.com/150',
+      barcode: Date.now().toString()
+    };
+    if (editingProduct) updateProduct(editingProduct.id, productData);
+    else addProduct(productData);
+    setIsModalOpen(false);
   };
 
-  const handlePriceCheck = async (product: Product) => {
-    setPriceCheckLoading(product.id);
-    setPriceAnalysis(null);
-    setSuggestedPrice(null);
-    try {
-      const text = await GeminiService.checkCompetitorPrices(product.name, product.sellingPrice, language);
-      setPriceAnalysis({ id: product.id, text });
-      
-      // Simple regex to try and find a suggested price in the text (heuristic)
-      const match = text.match(/(\d+)\s*(?:SAR|EGP|SR|ج\.م)/);
-      if(match) {
-          setSuggestedPrice(parseInt(match[1]));
-      }
-    } catch (e) {
-       console.error(e);
-    } finally {
-       setPriceCheckLoading(null);
-    }
-  };
+  const filteredProducts = products.filter(p => 
+    (filterCategory === 'all' || p.category === filterCategory) &&
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('inventory_mgmt')}</h1>
-          <p className="text-gray-500">{t('inventory_desc')}</p>
-        </div>
-        <button
-          onClick={runAiPrediction}
-          disabled={loading}
-          className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-6 py-3 rounded-lg shadow-md flex items-center gap-2 font-medium transition-all disabled:opacity-70"
-        >
-          {loading ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Sparkles className="w-5 h-5" />
-          )}
-          {loading ? t('analyzing_web') : t('run_ai_live')}
-        </button>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('col_product')}</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">{t('col_stock')}</th>
-                <th className="px-6 py-4 text-xs font-semibold text-indigo-600 uppercase tracking-wider bg-indigo-50/50 border-s border-indigo-100 w-1/4">
-                  <div className="flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
-                    {t('col_ai')}
-                  </div>
-                </th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-end">{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {products.map((product) => {
-                const prediction = predictions[product.id];
-                return (
-                  <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                          <Package className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{product.name}</p>
-                          <p className="text-xs text-gray-500">{product.sellingPrice} {t('currency_sar')}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {product.currentStock}
-                      </span>
-                    </td>
-                    
-                    <td className="px-6 py-4 border-s border-indigo-50 bg-indigo-50/30">
-                      {prediction ? (
-                        <div className="animate-in fade-in">
-                          <span className="text-lg font-bold text-indigo-700">{prediction.suggestedReorderPoint}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">-</span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4 text-end">
-                      <div className="flex items-center justify-end gap-2">
-                        {/* Visual Audit Button */}
-                        <button 
-                          onClick={() => { setSelectedAuditProduct(product); fileInputRef.current?.click(); }}
-                          className="text-gray-400 hover:text-blue-600 p-1" 
-                          title={t('visual_audit')}
-                        >
-                          <Camera className="w-4 h-4" />
-                        </button>
-                        
-                        {/* Price Check Button */}
-                        <button 
-                           onClick={() => handlePriceCheck(product)}
-                           disabled={priceCheckLoading === product.id}
-                           className="text-gray-400 hover:text-green-600 p-1"
-                           title={t('market_check')}
-                        >
-                           {priceCheckLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                        </button>
-
-                        <button onClick={() => { setAdjModal({isOpen: true, product}); setAdjQty(product.currentStock); }} className="text-gray-400 hover:text-primary-600 p-1">
-                           <Edit className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {priceAnalysis && priceAnalysis.id === product.id && (
-                          <div className="mt-2 text-xs text-left bg-green-50 p-2 rounded border border-green-100 animate-in fade-in">
-                              <p className="font-bold text-green-800 mb-1">{t('market_check_res')}:</p>
-                              <p className="mb-2">{priceAnalysis.text}</p>
-                              {suggestedPrice && suggestedPrice !== product.sellingPrice && (
-                                  <button 
-                                    onClick={() => updateProductPrice(product.id, suggestedPrice)}
-                                    className="bg-green-600 text-white px-2 py-1 rounded text-[10px] flex items-center gap-1"
-                                  >
-                                      {t('apply_price')} {suggestedPrice}
-                                  </button>
-                              )}
-                          </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Hidden File Input for Audit */}
-      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleVisualAudit} />
-
-      {/* Visual Audit Result Modal */}
-      {auditLoading && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-xl flex flex-col items-center gap-3">
-                  <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
-                  <p>{t('analyzing')}</p>
-              </div>
-          </div>
-      )}
-
-      {auditResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
-                <button onClick={() => setAuditResult(null)} className="absolute top-4 end-4"><X className="w-5 h-5" /></button>
-                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Camera className="w-5 h-5 text-blue-600" /> {t('visual_audit')}
-                </h2>
-                <div className="space-y-4 text-center">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                            <p className="text-xs text-gray-500 uppercase">AI Counted</p>
-                            <p className="text-2xl font-bold text-gray-900">{auditResult.detectedCount}</p>
-                        </div>
-                        <div className={`p-3 rounded-lg ${auditResult.discrepancy !== 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-                            <p className="text-xs text-gray-500 uppercase">Discrepancy</p>
-                            <p className={`text-2xl font-bold ${auditResult.discrepancy !== 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                {auditResult.discrepancy > 0 ? '+' : ''}{auditResult.discrepancy}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="text-left bg-blue-50 p-3 rounded-lg text-sm text-blue-800">
-                        <span className="font-bold">Advice: </span>{auditResult.advice}
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => setAuditResult(null)} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg">{t('cancel')}</button>
-                        <button onClick={applyAuditCount} className="flex-1 bg-primary-600 text-white py-2 rounded-lg flex items-center justify-center gap-2">
-                            <CheckCircle className="w-4 h-4" /> {t('apply_count')}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
+    <div className="h-full flex flex-col gap-6 font-sans pb-20">
       
-      {/* Adjust Modal */}
-      {adjModal.isOpen && adjModal.product && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-gray-900">{t('adjust_stock')}</h2>
-                    <button onClick={() => setAdjModal({isOpen: false, product: null})}><X className="w-5 h-5 text-gray-400" /></button>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>إدارة المخزون</h1>
+          <p className="text-slate-500 text-sm">تحكم شامل في المنتجات، الباركود، والكميات.</p>
+        </div>
+        <div className="flex gap-3">
+           <button className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white rounded-xl font-bold hover:bg-slate-200 transition-all">
+             <ClipboardList size={20} /> جرد شامل
+           </button>
+           <button onClick={openAddModal} className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95">
+             <Plus size={20} /> منتج جديد
+           </button>
+        </div>
+      </div>
+
+      {/* Search & Filter */}
+      <div className={`p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center ${theme === 'dark' ? 'bg-[#111]' : 'bg-white border border-slate-200'}`}>
+        <div className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border w-full ${theme === 'dark' ? 'bg-[#0a0a0a] border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+          <Search className="text-slate-400" />
+          <input type="text" placeholder="بحث باسم المنتج..." className="bg-transparent border-none outline-none w-full text-sm text-slate-700 dark:text-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        </div>
+        <div className="flex gap-2 overflow-x-auto w-full md:w-auto">
+          {['all', 'electronics', 'fashion', 'accessories'].map(cat => (
+            <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-colors ${filterCategory === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Products Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto custom-scrollbar pr-2">
+        <AnimatePresence>
+          {filteredProducts.map((product) => (
+            <motion.div key={product.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`relative group rounded-3xl p-4 border transition-all hover:shadow-xl ${theme === 'dark' ? 'bg-[#111] border-white/10 hover:border-blue-500/30' : 'bg-white border-slate-200 hover:border-blue-200'}`}>
+              
+              {/* Stock Label */}
+              <div className={`absolute top-6 left-6 z-10 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-md ${product.stock === 0 ? 'bg-red-500/90 text-white' : product.stock < 5 ? 'bg-orange-500/90 text-white' : 'bg-white/80 text-slate-800'}`}>
+                <Package size={12} /> <span>{product.stock === 0 ? 'نفذت' : `${product.stock}`}</span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <button onClick={() => alert(`Print Barcode for: ${product.barcode}`)} className="p-2 bg-white text-slate-800 rounded-full shadow-lg hover:bg-slate-100" title="طباعة باركود"><Barcode size={16} /></button>
+                <button onClick={() => openEditModal(product)} className="p-2 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50"><Edit3 size={16} /></button>
+                <button onClick={() => deleteProduct(product.id)} className="p-2 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50"><Trash2 size={16} /></button>
+              </div>
+
+              <div className="h-40 mb-4 overflow-hidden rounded-2xl bg-slate-100 dark:bg-white/5">
+                <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+              </div>
+
+              <div>
+                <h3 className={`font-bold text-lg truncate ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{product.name}</h3>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-xs text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded">{product.category}</span>
+                  <p className="text-blue-500 font-bold text-lg">{product.price} ر.س</p>
                 </div>
-                <div className="space-y-4">
-                    <input type="number" className="w-full rounded-lg border-gray-300" value={adjQty} onChange={e => setAdjQty(parseInt(e.target.value))} />
-                    <select className="w-full rounded-lg border-gray-300" value={adjReason} onChange={e => setAdjReason(e.target.value)}>
-                        <option value="Damage">{t('reason_damage')}</option>
-                        <option value="Theft">{t('reason_theft')}</option>
-                    </select>
-                </div>
-                <div className="mt-6 flex gap-3">
-                    <button onClick={() => { adjustStock(adjModal.product!.id, adjQty, adjReason); setAdjModal({isOpen: false, product: null}); }} className="w-full bg-primary-600 text-white py-2 rounded-lg">{t('confirm_adjust')}</button>
-                </div>
-            </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-lg rounded-3xl p-8 shadow-2xl ${theme === 'dark' ? 'bg-[#151515] text-white border border-white/10' : 'bg-white text-slate-900'}`}>
+            <div className="flex justify-between mb-6"><h2 className="text-2xl font-bold">{editingProduct ? 'تعديل' : 'إضافة'}</h2><button onClick={() => setIsModalOpen(false)}><X size={24} /></button></div>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div><label className="block text-sm font-bold mb-1 text-slate-500">الاسم</label><input type="text" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className={`w-full px-4 py-3 rounded-xl border bg-transparent outline-none ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-bold mb-1 text-slate-500">السعر</label><input type="number" required value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className={`w-full px-4 py-3 rounded-xl border bg-transparent outline-none ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`} /></div>
+                <div><label className="block text-sm font-bold mb-1 text-slate-500">الكمية</label><input type="number" required value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} className={`w-full px-4 py-3 rounded-xl border bg-transparent outline-none ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`} /></div>
+              </div>
+              <div>
+                  <label className="block text-sm font-bold mb-2 text-slate-500">التصنيف</label>
+                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-black/30 border-white/10 text-white' : 'bg-slate-50 border-slate-200'}`}>
+                    <option value="electronics">إلكترونيات</option><option value="fashion">أزياء</option><option value="accessories">إكسسوارات</option>
+                  </select>
+              </div>
+              <button type="submit" className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 mt-4"><Save size={20} /> حفظ</button>
+            </form>
+          </div>
         </div>
       )}
     </div>
