@@ -1,18 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './AppFixed';
-import './index.css'; // <--- ده السطر السحري اللي كان ناقص!
-import { StoreProvider } from './context/StoreContext';
-
-const rootElement = document.getElementById('root');
-
-if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <React.StrictMode>
-      <StoreProvider>
-        <App />
-      </StoreProvider>
-    </React.StrictMode>
-  );
-}
+import './index.css';
+import App from './App'; 
+const root = ReactDOM.createRoot(
+document.getElementById('root') as HTMLElement
+);
+root.render(
+<React.StrictMode>
+<App />
+</React.StrictMode>
+);
