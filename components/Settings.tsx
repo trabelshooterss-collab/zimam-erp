@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Save, User, Lock, Bell, Globe, HelpCircle, LogOut, Shield } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
+// import { useStore } from '../context/StoreContext'; // تم حذف هذا السياق
 
 const Settings = () => {
-  const { customers } = useStore(); 
+  // بيانات وهمية مؤقتة بدلاً من StoreContext
+  const customers = [];
+  // const { customers } = useStore(); 
   const [activeTab, setActiveTab] = useState('general');
 
   return (

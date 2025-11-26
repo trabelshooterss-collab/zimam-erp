@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Search, UserPlus, Phone, Mail, MapPin, MoreVertical } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
+// import { useStore } from '../context/StoreContext'; // تم حذف هذا السياق
 
 const People = () => {
-  const { customers = [] } = useStore(); // حماية المصفوفة
+  // بيانات وهمية مؤقتة بدلاً من StoreContext
+  const customers = [];
+  // const { customers = [] } = useStore(); // حماية المصفوفة
   const [filterType, setFilterType] = useState('all');
 
   // كود الحماية هنا

@@ -9,11 +9,11 @@ import {
 // Contexts
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { InventoryProvider } from './context/InventoryContext';
+// import { InventoryProvider } from './context/InventoryContext'; // تم حذف هذا السياق
 
 // Components
 import Navbar from './components/Navbar';
-import Dashboard from './components/Dashboard';
+// import Dashboard from './components/Dashboard'; // تم حذف هذا المكون
 import POS from './components/POS';
 import Inventory from './components/Inventory';
 import Accounting from './components/Accounting'; // <-- جديد
@@ -97,7 +97,7 @@ const MainLayout = ({ onLogout }: { onLogout: () => void }) => {
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <Navbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
         <main className="flex-1 overflow-auto p-6 relative">
-          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'dashboard' && <div>لوحة التحكم قيد التطوير</div>}
           {activeTab === 'smart-ai' && <SmartAssistant />} 
           {activeTab === 'pos' && <POS />}
           {activeTab === 'inventory' && <Inventory />}
@@ -119,7 +119,7 @@ function App() {
   return (
     <ThemeProvider> 
       <LanguageProvider>
-        <InventoryProvider> 
+         
           <div className="App h-full font-sans">
             <AnimatePresence mode="wait">
               {!introFinished && <IntroScreen onStart={handleStartSystem} />}
@@ -127,7 +127,7 @@ function App() {
               {introFinished && isLoggedIn && <MainLayout onLogout={() => setIsLoggedIn(false)} />}
             </AnimatePresence>
           </div>
-        </InventoryProvider>
+        
       </LanguageProvider>
     </ThemeProvider>
   );

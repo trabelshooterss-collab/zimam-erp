@@ -2,11 +2,36 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Edit3, Trash2, Package, X, Save, Image as ImageIcon, Printer, Barcode, ClipboardList } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { useInventory, Product } from '../context/InventoryContext';
+// import { useInventory, Product } from '../context/InventoryContext'; // تم حذف هذا السياق
+
+// تعريف واجهة المنتج
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  category: string;
+  image?: string;
+  barcode?: string;
+}
 
 const Inventory: React.FC = () => {
   const { theme } = useTheme();
-  const { products, addProduct, updateProduct, deleteProduct } = useInventory();
+  // بيانات وهمية مؤقتة بدلاً من InventoryContext
+  const [products, setProducts] = useState<Product[]>([]);
+  
+  const addProduct = (product: Omit<Product, 'id'>) => {
+    setProducts([...products, { ...product, id: Date.now().toString() }]);
+  };
+  
+  const updateProduct = (id: string, product: Partial<Product>) => {
+    setProducts(products.map(p => p.id === id ? { ...p, ...product } : p));
+  };
+  
+  const deleteProduct = (id: string) => {
+    setProducts(products.filter(p => p.id !== id));
+  };
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);

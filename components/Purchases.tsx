@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Download, Trash2, Edit } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
+// import { useStore } from '../context/StoreContext'; // تم حذف هذا السياق
 
 const Purchases = () => {
-  const { invoices = [], addInvoice } = useStore(); // ضمنا إنها مصفوفة حتى لو فاضية
+  // بيانات وهمية مؤقتة بدلاً من StoreContext
+  const invoices = [];
+  const addInvoice = (invoice: any) => console.log('إضافة فاتورة:', invoice);
+  // const { invoices = [], addInvoice } = useStore(); // ضمنا إنها مصفوفة حتى لو فاضية
   const [showAddModal, setShowAddModal] = useState(false);
 
   // الحل السحري: علامة الاستفهام والـ OR operator
