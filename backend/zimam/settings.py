@@ -23,7 +23,13 @@ if not SECRET_KEY:
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
 # Production: require explicit ALLOWED_HOSTS
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+allowed_hosts_str = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',')]
+
+# Always allow Railway domains in production
+if not DEBUG:
+    ALLOWED_HOSTS.append('.railway.app')
+    ALLOWED_HOSTS.append('.up.railway.app')
 
 # Application definition
 INSTALLED_APPS = [
@@ -171,11 +177,14 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    os.getenv('FRONTEND_URL', ''),
 ]
+
+frontend_url = os.getenv('FRONTEND_URL')
+if frontend_url:
+    CORS_ALLOWED_ORIGINS.append(frontend_url)
+
 if not DEBUG:
     # Production: be strict with CORS, only allow frontend domain
-    frontend_url = os.getenv('FRONTEND_URL', '')
     if frontend_url:
         CORS_ALLOWED_ORIGINS = [frontend_url]
     else:

@@ -1,7 +1,21 @@
+import os
+import logging
+import google.generativeai as genai
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.conf import settings
+from .services import GeminiService
+from apps.purchases.models import PurchaseOrder
 
+logger = logging.getLogger(__name__)
+
+class GenerateView(APIView):
+    """
+    Handle text generation tasks using Google Gemini.
+    """
     def post(self, request):
-        """Handle text generation tasks using Google Gemini.
-        
+        """
         Request body:
         {
             "task": "analyze_finances" | "market_pulse" | "predict_inventory",
@@ -29,15 +43,40 @@
             model = genai.GenerativeModel('gemini-pro')
             
             # Build prompt based on task
+            prompt = ""
             if task == 'analyze_finances':
                 data = payload.get('data', {})
                 prompt = f"قم بتحليل البيانات المالية التالية وقدم تقرير مختصر مع توصيات: {str(data)}"
             elif task == 'market_pulse':
                 prompt = "قدم ملخصًا عن الاتجاهات الحالية في السوق والفرص المحتملة للنمو."
             elif task == 'predict_inventory':
+                products = payload.get('products', [])
+                prompt = f"بناءً على قائمة المنتجات التالية، توقع ما قد ينفد قريبًا: {str(products)}"
+            else:
+                prompt = payload.get('prompt', 'Hello')
+
+            # Call Gemini API
+            response = model.generate_content(prompt)
+            return Response({
+                'result': response.text,
+                'mock': False
+            })
+
         except Exception as e:
             logger.error(f'Gemini API error: {str(e)}', exc_info=True)
             return Response({
+                'result': f'Error: {str(e)}',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ChatView(APIView):
+    """
+    Handle chat interactions.
+    """
+    def post(self, request):
+        """
+        Request body:
+        {
             "question": "السؤال هنا",
             "context": {...}  (optional)
         }
@@ -91,3 +130,18 @@
                 'error': str(e),
                 'mock': True
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class NegotiateView(APIView):
+    """
+    Handle AI negotiation for Purchase Orders.
+    """
+    def post(self, request, pk):
+        try:
+            po = PurchaseOrder.objects.get(pk=pk)
+            service = GeminiService()
+            email_draft = service.draft_negotiation_email(po)
+            return Response({'email_draft': email_draft})
+        except PurchaseOrder.DoesNotExist:
+            return Response({'error': 'Purchase Order not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
