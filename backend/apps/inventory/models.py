@@ -1,6 +1,8 @@
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from apps.companies.models import Company
 
 class Category(models.Model):
@@ -49,15 +51,24 @@ class Product(models.Model):
     barcode = models.CharField(_('barcode'), max_length=100, blank=True, null=True)
 
     # Pricing
-    cost_price = models.DecimalField(_('cost price'), max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(_('cost price'), max_digits=10, decimal_places=2) # Standard/Last cost
+    average_cost = models.DecimalField(_('average cost'), max_digits=10, decimal_places=2, default=0) # WAC
     selling_price = models.DecimalField(_('selling price'), max_digits=10, decimal_places=2)
     tax_rate = models.DecimalField(_('tax rate'), max_digits=5, decimal_places=2, default=0.0)
 
     # Stock
-    current_stock = models.IntegerField(_('current stock'), default=0)
-    reorder_point = models.IntegerField(_('reorder point'), default=10)
-    ai_suggested_reorder_point = models.IntegerField(_('AI suggested reorder point'), blank=True, null=True)
+    current_stock = models.DecimalField(_('current stock'), max_digits=10, decimal_places=2, default=0)
+    reorder_point = models.DecimalField(_('reorder point'), max_digits=10, decimal_places=2, default=10)
+    ai_suggested_reorder_point = models.DecimalField(_('AI suggested reorder point'), max_digits=10, decimal_places=2, blank=True, null=True)
     last_restocked = models.DateTimeField(_('last restocked'), blank=True, null=True)
+    preferred_supplier = models.ForeignKey(
+        'purchases.Supplier',
+        on_delete=models.SET_NULL,
+        related_name='products',
+        verbose_name=_('preferred supplier'),
+        blank=True,
+        null=True
+    )
 
     # Media
     image = models.ImageField(_('image'), upload_to='product_images/', blank=True, null=True)
@@ -91,46 +102,71 @@ class Product(models.Model):
 
     @property
     def profit_margin(self):
-        """Calculate profit margin percentage."""
+        """Calculate profit margin percentage based on average cost."""
+        cost = self.average_cost if self.average_cost > 0 else self.cost_price
         if self.selling_price == 0:
             return 0
-        return ((self.selling_price - self.cost_price) / self.selling_price) * 100
+        return ((self.selling_price - cost) / self.selling_price) * 100
 
-class StockMovement(models.Model):
-    """Stock movement model for tracking inventory changes."""
+    @property
+    def total_value(self):
+        """Calculate total inventory value for this product."""
+        return self.current_stock * self.average_cost
 
-    MOVEMENT_TYPES = (
-        ('in', _('Stock In')),
-        ('out', _('Stock Out')),
+class InventoryTransaction(models.Model):
+    """
+    Ledger for all inventory movements.
+    The 'Iron Triangle' core component.
+    """
+
+    TRANSACTION_TYPES = (
+        ('purchase', _('Purchase Receipt')),
+        ('sale', _('Sales Order')),
+        ('return_in', _('Sales Return')),
+        ('return_out', _('Purchase Return')),
         ('adjustment', _('Stock Adjustment')),
-        ('transfer', _('Stock Transfer')),
-        ('return', _('Return')),
+        ('transfer_in', _('Transfer In')),
+        ('transfer_out', _('Transfer Out')),
     )
 
     product = models.ForeignKey(
         Product, 
         on_delete=models.CASCADE, 
-        related_name='stock_movements',
+        related_name='transactions',
         verbose_name=_('product')
     )
-    movement_type = models.CharField(_('movement type'), max_length=20, choices=MOVEMENT_TYPES)
-    quantity = models.IntegerField(_('quantity'))
-    reference = models.CharField(_('reference'), max_length=100, blank=True, null=True)
+    transaction_type = models.CharField(_('transaction type'), max_length=20, choices=TRANSACTION_TYPES)
+    quantity = models.DecimalField(_('quantity'), max_digits=10, decimal_places=2) # Positive for add, Negative for deduct
+    
+    # Costing (Snapshot at time of transaction)
+    unit_cost = models.DecimalField(_('unit cost'), max_digits=10, decimal_places=2)
+    total_cost = models.DecimalField(_('total cost'), max_digits=12, decimal_places=2)
+    
+    # Audit Trail
+    running_balance = models.DecimalField(_('running balance'), max_digits=10, decimal_places=2) # Stock after transaction
+    
+    # Deep Linking (Polymorphic relationship)
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    related_document = GenericForeignKey('content_type', 'object_id')
+
+    reference = models.CharField(_('reference'), max_length=100, blank=True, null=True) # e.g. INV-001, PO-002
     notes = models.TextField(_('notes'), blank=True, null=True)
+    
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     created_by = models.ForeignKey(
         'users.User', 
         on_delete=models.SET_NULL, 
-        related_name='stock_movements',
+        related_name='inventory_transactions',
         verbose_name=_('created by'),
         blank=True, 
         null=True
     )
 
     class Meta:
-        verbose_name = _('Stock Movement')
-        verbose_name_plural = _('Stock Movements')
+        verbose_name = _('Inventory Transaction')
+        verbose_name_plural = _('Inventory Transactions')
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.product.name} - {self.movement_type} ({self.quantity})"
+        return f"{self.product.name} - {self.transaction_type} ({self.quantity})"

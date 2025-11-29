@@ -1,7 +1,7 @@
 
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
-from .models import Category, Product, StockMovement
+from .models import Category, Product, InventoryTransaction
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -43,18 +43,17 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
 
-class StockMovementSerializer(serializers.ModelSerializer):
-    """Serializer for StockMovement model."""
+class InventoryTransactionSerializer(serializers.ModelSerializer):
+    """Serializer for InventoryTransaction model."""
 
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_sku = serializers.CharField(source='product.sku', read_only=True)
-    created_by_name = serializers.CharField(source='created_by.full_name', read_only=True)
 
     class Meta:
-        model = StockMovement
+        model = InventoryTransaction
         fields = [
             'id', 'product', 'product_name', 'product_sku',
-            'movement_type', 'quantity', 'reference', 'notes',
-            'created_at', 'created_by', 'created_by_name'
+            'transaction_type', 'quantity', 'unit_cost', 'total_cost',
+            'running_balance', 'notes', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'created_by']
+        read_only_fields = ['id', 'unit_cost', 'total_cost', 'running_balance', 'created_at']

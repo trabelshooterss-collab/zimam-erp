@@ -82,6 +82,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create invoice with items."""
+        from apps.inventory.utils import update_stock_on_sale
+        
         items_data = validated_data.pop('items', [])
 
         # Create invoice
@@ -89,6 +91,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
         # Create invoice items
         for item_data in items_data:
-            InvoiceItem.objects.create(invoice=invoice, **item_data)
+            item = InvoiceItem.objects.create(invoice=invoice, **item_data)
+            
+            # Update stock if it's a sales invoice
+            if invoice.invoice_type == 'sales':
+                update_stock_on_sale(item.product, item.quantity, invoice)
 
         return invoice

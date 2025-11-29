@@ -8,7 +8,7 @@ app_name = 'inventory'
 router = DefaultRouter()
 router.register(r'categories', views.CategoryViewSet)
 router.register(r'products', views.ProductViewSet)
-router.register(r'stock-movements', views.StockMovementViewSet)
+router.register(r'inventory-transactions', views.InventoryTransactionViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

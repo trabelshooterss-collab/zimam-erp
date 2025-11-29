@@ -3,10 +3,9 @@ import random
 import string
 from django.utils import timezone
 from datetime import timedelta
-from .models import Product, StockMovement
-from apps.sales.models import InvoiceItem
-from apps.purchases.models import PurchaseOrderItem
-
+from django.db import models
+from .models import Product
+from .services import InventoryService
 
 def generate_barcode():
     """Generate a unique barcode."""
@@ -18,6 +17,13 @@ def generate_barcode():
 
 def predict_reorder_points(products):
     """Predict reorder points using AI."""
+    # This function needs to be updated to use the new transaction model if it relied on StockMovement
+    # But for now, it relies on InvoiceItem and PurchaseOrderItem which are fine.
+    # However, the original code imported InvoiceItem and PurchaseOrderItem inside the file.
+    # I need to make sure I import them.
+    from apps.sales.models import InvoiceItem
+    from apps.purchases.models import PurchaseOrderItem
+    
     predictions = {}
 
     for product in products:
@@ -64,32 +70,24 @@ def predict_reorder_points(products):
     return predictions
 
 
-def update_stock_on_sale(product, quantity):
+def update_stock_on_sale(product, quantity, invoice=None):
     """Update stock when a sale is made."""
-    product.current_stock -= quantity
-    product.save()
-
-    # Record stock movement
-    StockMovement.objects.create(
+    InventoryService.process_transaction(
         product=product,
-        movement_type='out',
-        quantity=quantity,
-        reference='Sale',
-        created_at=timezone.now()
+        quantity=-quantity, # Negative for sale
+        transaction_type='sale',
+        related_document=invoice,
+        notes=f"Sale Invoice: {invoice.invoice_number if invoice else 'Unknown'}"
     )
 
 
-def update_stock_on_purchase(product, quantity):
+def update_stock_on_purchase(product, quantity, purchase_order=None, unit_cost=None):
     """Update stock when a purchase is made."""
-    product.current_stock += quantity
-    product.last_restocked = timezone.now()
-    product.save()
-
-    # Record stock movement
-    StockMovement.objects.create(
+    InventoryService.process_transaction(
         product=product,
-        movement_type='in',
-        quantity=quantity,
-        reference='Purchase',
-        created_at=timezone.now()
+        quantity=quantity, # Positive for purchase
+        transaction_type='purchase',
+        unit_cost=unit_cost,
+        related_document=purchase_order,
+        notes=f"Purchase Order: {purchase_order.order_number if purchase_order else 'Unknown'}"
     )

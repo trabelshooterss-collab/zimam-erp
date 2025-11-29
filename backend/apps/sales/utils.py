@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.translation import gettext_lazy as _
 from django.template.loader import render_to_string
-from weasyprint import HTML, CSS
+# from weasyprint import HTML, CSS  # Temporarily disabled - requires GTK on Windows
 import json
 import hashlib
 import uuid

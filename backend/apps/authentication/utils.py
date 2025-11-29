@@ -13,26 +13,14 @@ import pyotp
 def send_password_reset_email(user, token):
     """Send password reset email to user."""
     subject = _('Password Reset for Zimam ERP')
-    message = _(
-        f"Hello {user.first_name} {user.last_name},
-
-"
-        f"You have requested to reset your password for Zimam ERP.
-
-"
-        f"Please click the following link to reset your password:
-"
-        f"{settings.FRONTEND_URL}/reset-password?token={token}
-
-"
-        f"This link will expire in 24 hours.
-
-"
-        f"If you didn't request this password reset, please ignore this email.
-
-"
-        f"Best regards,
-"
+    message = (
+        f"Hello {user.first_name} {user.last_name},\n\n"
+        f"You have requested to reset your password for Zimam ERP.\n\n"
+        f"Please click the following link to reset your password:\n"
+        f"{settings.FRONTEND_URL}/reset-password?token={token}\n\n"
+        f"This link will expire in 24 hours.\n\n"
+        f"If you didn't request this password reset, please ignore this email.\n\n"
+        f"Best regards,\n"
         f"The Zimam ERP Team"
     )
 

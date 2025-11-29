@@ -1,166 +1,146 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Edit3, Trash2, Package, X, Save, Image as ImageIcon, Printer, Barcode, ClipboardList } from 'lucide-react';
+import { Search, Plus, Package, Edit, Trash2, MoreVertical, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-// import { useInventory, Product } from '../context/InventoryContext'; // تم حذف هذا السياق
 
-// تعريف واجهة المنتج
 interface Product {
-  id: string;
+  id: number;
   name: string;
-  price: number;
+  sku: string;
+  category: 'Rims' | 'Tires' | 'Oils' | 'Filters';
   stock: number;
-  category: string;
-  image?: string;
-  barcode?: string;
+  price: number;
+  image: string;
 }
+
+const mockInventory: Product[] = [
+  { id: 1, name: 'جنط ألمنيوم رياضي 18"', sku: 'ZM-RIM-001', category: 'Rims', stock: 15, price: 1200, image: 'https://picsum.photos/seed/rim1/100/100.jpg' },
+  { id: 2, name: 'إطار ميشلان Primacy 4', sku: 'MC-TIRE-004', category: 'Tires', stock: 32, price: 850, image: 'https://picsum.photos/seed/tire1/100/100.jpg' },
+  { id: 3, name: 'زيت محرك كاسترول 5W-30', sku: 'CS-OIL-002', category: 'Oils', stock: 4, price: 250, image: 'https://picsum.photos/seed/oil1/100/100.jpg' },
+  { id: 4, name: 'فلتر هواء رياضي K&N', sku: 'KN-FLTR-008', category: 'Filters', stock: 25, price: 350, image: 'https://picsum.photos/seed/filter1/100/100.jpg' },
+  { id: 5, name: 'جنط أسود لامع 19"', sku: 'ZM-RIM-002', category: 'Rims', stock: 0, price: 1800, image: 'https://picsum.photos/seed/rim2/100/100.jpg' },
+  { id: 6, name: 'إطار بريدجستون Turanza', sku: 'BG-TIRE-001', category: 'Tires', stock: 18, price: 950, image: 'https://picsum.photos/seed/tire2/100/100.jpg' },
+];
 
 const Inventory: React.FC = () => {
   const { theme } = useTheme();
-  // بيانات وهمية مؤقتة بدلاً من InventoryContext
-  const [products, setProducts] = useState<Product[]>([]);
-  
-  const addProduct = (product: Omit<Product, 'id'>) => {
-    setProducts([...products, { ...product, id: Date.now().toString() }]);
-  };
-  
-  const updateProduct = (id: string, product: Partial<Product>) => {
-    setProducts(products.map(p => p.id === id ? { ...p, ...product } : p));
-  };
-  
-  const deleteProduct = (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
-  };
-  
+  const [products, setProducts] = useState(mockInventory);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({ name: '', price: '', stock: '', category: 'electronics', image: '' });
+  const [filter, setFilter] = useState('all');
 
-  const openAddModal = () => {
-    setEditingProduct(null);
-    setFormData({ name: '', price: '', stock: '', category: 'electronics', image: '' });
-    setIsModalOpen(true);
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter(p => {
+        if (filter === 'all') return true;
+        if (filter === 'low_stock') return p.stock > 0 && p.stock <= 5;
+        if (filter === 'out_of_stock') return p.stock === 0;
+        return p.category === filter;
+      })
+      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [products, searchTerm, filter]);
+
+  const getStatus = (stock: number): { text: string; color: string; icon: JSX.Element } => {
+    if (stock === 0) return { text: 'نفذ المخزون', color: 'text-red-500', icon: <XCircle size={14}/> };
+    if (stock <= 5) return { text: 'مخزون منخفض', color: 'text-orange-500', icon: <AlertTriangle size={14}/> };
+    return { text: 'متوفر', color: 'text-green-500', icon: <CheckCircle size={14}/> };
   };
-
-  const openEditModal = (product: Product) => {
-    setEditingProduct(product);
-    setFormData({ name: product.name, price: product.price.toString(), stock: product.stock.toString(), category: product.category, image: product.image });
-    setIsModalOpen(true);
-  };
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    const productData = {
-      name: formData.name,
-      price: Number(formData.price),
-      stock: Number(formData.stock),
-      category: formData.category,
-      image: formData.image || 'https://via.placeholder.com/150',
-      barcode: Date.now().toString()
-    };
-    if (editingProduct) updateProduct(editingProduct.id, productData);
-    else addProduct(productData);
-    setIsModalOpen(false);
-  };
-
-  const filteredProducts = products.filter(p => 
-    (filterCategory === 'all' || p.category === filterCategory) &&
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  
+  const lowStockCount = useMemo(() => products.filter(p => p.stock > 0 && p.stock <= 5).length, [products]);
 
   return (
-    <div className="h-full flex flex-col gap-6 font-sans pb-20">
-      
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>إدارة المخزون</h1>
-          <p className="text-slate-500 text-sm">تحكم شامل في المنتجات، الباركود، والكميات.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">إدارة المخزون</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">عرض وإدارة جميع منتجاتك.</p>
         </div>
-        <div className="flex gap-3">
-           <button className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white rounded-xl font-bold hover:bg-slate-200 transition-all">
-             <ClipboardList size={20} /> جرد شامل
-           </button>
-           <button onClick={openAddModal} className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95">
-             <Plus size={20} /> منتج جديد
-           </button>
-        </div>
+        <button className="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg flex items-center gap-2 self-start md:self-center">
+          <Plus className="w-5 h-5" />
+          إضافة منتج جديد
+        </button>
+      </div>
+      
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white border'}`}><h4 className="text-sm text-slate-500">إجمالي المنتجات</h4><p className="text-2xl font-bold dark:text-white">{products.length}</p></div>
+        <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white border'}`}><h4 className="text-sm text-slate-500">أصناف فريدة</h4><p className="text-2xl font-bold dark:text-white">{[...new Set(products.map(p => p.category))].length}</p></div>
+        <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white border'}`}><h4 className="text-sm text-slate-500">قيمة المخزون</h4><p className="text-2xl font-bold dark:text-white">{products.reduce((acc, p) => acc + p.price * p.stock, 0).toLocaleString()} {t('currency')}</p></div>
+        <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-orange-900/50' : 'bg-orange-50'} border-orange-200`}><h4 className="text-sm text-orange-600 dark:text-orange-400">تحت حد الطلب</h4><p className="text-2xl font-bold text-orange-600 dark:text-orange-300">{lowStockCount}</p></div>
       </div>
 
-      {/* Search & Filter */}
-      <div className={`p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center ${theme === 'dark' ? 'bg-[#111]' : 'bg-white border border-slate-200'}`}>
-        <div className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border w-full ${theme === 'dark' ? 'bg-[#0a0a0a] border-white/10' : 'bg-slate-50 border-slate-200'}`}>
-          <Search className="text-slate-400" />
-          <input type="text" placeholder="بحث باسم المنتج..." className="bg-transparent border-none outline-none w-full text-sm text-slate-700 dark:text-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-        <div className="flex gap-2 overflow-x-auto w-full md:w-auto">
-          {['all', 'electronics', 'fashion', 'accessories'].map(cat => (
-            <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-colors ${filterCategory === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}>
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto custom-scrollbar pr-2">
-        <AnimatePresence>
-          {filteredProducts.map((product) => (
-            <motion.div key={product.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`relative group rounded-3xl p-4 border transition-all hover:shadow-xl ${theme === 'dark' ? 'bg-[#111] border-white/10 hover:border-blue-500/30' : 'bg-white border-slate-200 hover:border-blue-200'}`}>
-              
-              {/* Stock Label */}
-              <div className={`absolute top-6 left-6 z-10 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-md ${product.stock === 0 ? 'bg-red-500/90 text-white' : product.stock < 5 ? 'bg-orange-500/90 text-white' : 'bg-white/80 text-slate-800'}`}>
-                <Package size={12} /> <span>{product.stock === 0 ? 'نفذت' : `${product.stock}`}</span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <button onClick={() => alert(`Print Barcode for: ${product.barcode}`)} className="p-2 bg-white text-slate-800 rounded-full shadow-lg hover:bg-slate-100" title="طباعة باركود"><Barcode size={16} /></button>
-                <button onClick={() => openEditModal(product)} className="p-2 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50"><Edit3 size={16} /></button>
-                <button onClick={() => deleteProduct(product.id)} className="p-2 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50"><Trash2 size={16} /></button>
-              </div>
-
-              <div className="h-40 mb-4 overflow-hidden rounded-2xl bg-slate-100 dark:bg-white/5">
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
-              </div>
-
-              <div>
-                <h3 className={`font-bold text-lg truncate ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{product.name}</h3>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-xs text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded">{product.category}</span>
-                  <p className="text-blue-500 font-bold text-lg">{product.price} ر.س</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className={`w-full max-w-lg rounded-3xl p-8 shadow-2xl ${theme === 'dark' ? 'bg-[#151515] text-white border border-white/10' : 'bg-white text-slate-900'}`}>
-            <div className="flex justify-between mb-6"><h2 className="text-2xl font-bold">{editingProduct ? 'تعديل' : 'إضافة'}</h2><button onClick={() => setIsModalOpen(false)}><X size={24} /></button></div>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div><label className="block text-sm font-bold mb-1 text-slate-500">الاسم</label><input type="text" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className={`w-full px-4 py-3 rounded-xl border bg-transparent outline-none ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-bold mb-1 text-slate-500">السعر</label><input type="number" required value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className={`w-full px-4 py-3 rounded-xl border bg-transparent outline-none ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`} /></div>
-                <div><label className="block text-sm font-bold mb-1 text-slate-500">الكمية</label><input type="number" required value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} className={`w-full px-4 py-3 rounded-xl border bg-transparent outline-none ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`} /></div>
-              </div>
-              <div>
-                  <label className="block text-sm font-bold mb-2 text-slate-500">التصنيف</label>
-                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-black/30 border-white/10 text-white' : 'bg-slate-50 border-slate-200'}`}>
-                    <option value="electronics">إلكترونيات</option><option value="fashion">أزياء</option><option value="accessories">إكسسوارات</option>
-                  </select>
-              </div>
-              <button type="submit" className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 mt-4"><Save size={20} /> حفظ</button>
-            </form>
+      {/* Filters and Search */}
+      <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input type="text" placeholder="ابحث بالاسم أو SKU..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={`w-full pl-10 pr-4 py-3 rounded-lg border ${theme === 'dark' ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-300'} focus:ring-2 focus:ring-blue-500 outline-none`} />
+          </div>
+          <div className="flex items-center p-1 rounded-lg overflow-x-auto pb-2">
+            <button onClick={() => setFilter('all')} className={`px-3 py-2 text-sm font-medium whitespace-nowrap rounded-md ${filter === 'all' ? 'bg-blue-600 text-white' : 'dark:text-slate-300'}`}>الكل</button>
+            <button onClick={() => setFilter('low_stock')} className={`px-3 py-2 text-sm font-medium whitespace-nowrap rounded-md ${filter === 'low_stock' ? 'bg-orange-500 text-white' : 'dark:text-slate-300'}`}>مخزون منخفض</button>
+            <button onClick={() => setFilter('out_of_stock')} className={`px-3 py-2 text-sm font-medium whitespace-nowrap rounded-md ${filter === 'out_of_stock' ? 'bg-red-500 text-white' : 'dark:text-slate-300'}`}>نفذ المخزون</button>
+            <button onClick={() => setFilter('Rims')} className={`px-3 py-2 text-sm font-medium whitespace-nowrap rounded-md ${filter === 'Rims' ? 'bg-slate-500 text-white' : 'dark:text-slate-300'}`}>جنوط</button>
+            <button onClick={() => setFilter('Tires')} className={`px-3 py-2 text-sm font-medium whitespace-nowrap rounded-md ${filter === 'Tires' ? 'bg-slate-500 text-white' : 'dark:text-slate-300'}`}>إطارات</button>
+            <button onClick={() => setFilter('Oils')} className={`px-3 py-2 text-sm font-medium whitespace-nowrap rounded-md ${filter === 'Oils' ? 'bg-slate-500 text-white' : 'dark:text-slate-300'}`}>زيوت</button>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+
+      {/* Inventory Table */}
+      <div className={`rounded-xl border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'} overflow-hidden`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-right">
+            <thead className={`text-xs ${theme === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-50 text-slate-600'}`}>
+              <tr>
+                <th scope="col" className="p-4">المنتج</th>
+                <th scope="col" className="p-4">SKU</th>
+                <th scope="col" className="p-4">التصنيف</th>
+                <th scope="col" className="p-4">المخزون</th>
+                <th scope="col" className="p-4">السعر</th>
+                <th scope="col" className="p-4">الحالة</th>
+                <th scope="col" className="p-4">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map(p => (
+                <tr key={p.id} className={`border-b ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-800' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                  <td className="p-4 font-medium text-slate-900 dark:text-white">
+                    <div className="flex items-center gap-3">
+                      <img src={p.image} alt={p.name} className="w-12 h-12 rounded-lg object-cover" />
+                      <span>{p.name}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-slate-500">{p.sku}</td>
+                  <td className="p-4 text-slate-500">{p.category}</td>
+                  <td className="p-4 font-medium dark:text-white">{p.stock}</td>
+                  <td className="p-4 font-medium text-blue-600 dark:text-blue-400">{p.price.toLocaleString()} {t('currency')}</td>
+                  <td className="p-4">
+                    <span className={`flex items-center gap-1.5 text-xs font-medium ${getStatus(p.stock).color}`}>
+                      {getStatus(p.stock).icon}
+                      {getStatus(p.stock).text}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex gap-2">
+                       <button className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"><Edit size={16}/></button>
+                       <button className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"><Trash2 size={16}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredProducts.length === 0 && (
+             <div className="text-center py-12 text-slate-500">
+                <Package size={40} className="mx-auto mb-2"/>
+                <h3 className="font-bold">لا توجد منتجات مطابقة</h3>
+                <p className="text-sm">جرّب تغيير كلمات البحث أو الفلتر.</p>
+             </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 };
 

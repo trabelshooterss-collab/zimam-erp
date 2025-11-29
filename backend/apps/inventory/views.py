@@ -7,8 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Q, Sum
-from .models import Category, Product, StockMovement
-from .serializers import CategorySerializer, ProductSerializer, StockMovementSerializer
+from .models import Category, Product, InventoryTransaction
+from .serializers import CategorySerializer, ProductSerializer, InventoryTransactionSerializer
 from .utils import generate_barcode, predict_reorder_points
 import csv
 import io
@@ -91,13 +91,14 @@ class ProductViewSet(viewsets.ModelViewSet):
 
             product.save()
 
-            # Record stock movement
-            StockMovement.objects.create(
+            # Record stock movement (using InventoryService instead)
+            from .services import InventoryService
+            InventoryService.process_transaction(
                 product=product,
-                movement_type=movement_type,
-                quantity=quantity,
+                transaction_type='manual_adjustment',
+                quantity=quantity if movement_type == 'in' else -quantity,
                 notes=notes,
-                created_by=request.user
+                user=request.user
             )
 
             return Response({
@@ -181,11 +182,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
 
 
-class StockMovementViewSet(viewsets.ModelViewSet):
-    """ViewSet for StockMovement model."""
+class InventoryTransactionViewSet(viewsets.ModelViewSet):
+    """ViewSet for InventoryTransaction model."""
 
-    queryset = StockMovement.objects.all()
-    serializer_class = StockMovementSerializer
+    queryset = InventoryTransaction.objects.all()
+    serializer_class = InventoryTransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['product', 'movement_type']
@@ -194,9 +195,9 @@ class StockMovementViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        """Filter stock movements by company."""
+        """Filter inventory transactions by company."""
         user = self.request.user
-        return StockMovement.objects.filter(product__company=user.company)
+        return InventoryTransaction.objects.filter(product__company=user.company)
 
 
 class BulkImportProductsView(APIView):
@@ -332,14 +333,14 @@ class StockAdjustmentView(APIView):
                     product.current_stock = new_quantity
                     product.save()
 
-                    # Record stock movement
-                    movement_type = 'in' if difference > 0 else 'out'
-                    StockMovement.objects.create(
+                    # Record stock movement (using InventoryService)
+                    from .services import InventoryService
+                    InventoryService.process_transaction(
                         product=product,
-                        movement_type='adjustment',
-                        quantity=abs(difference),
+                        transaction_type='adjustment',
+                        quantity=difference,
                         notes=notes,
-                        created_by=request.user
+                        user=request.user
                     )
                 except Product.DoesNotExist:
                     continue

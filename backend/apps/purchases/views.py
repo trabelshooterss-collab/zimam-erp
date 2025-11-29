@@ -22,7 +22,7 @@ from .utils import (
     generate_purchase_order_pdf, send_purchase_order_email,
     update_stock_on_purchase
 )
-from apps.inventory.models import StockMovement
+
 import csv
 import io
 

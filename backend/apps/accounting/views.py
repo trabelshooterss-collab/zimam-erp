@@ -87,7 +87,8 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
         for item in journal_entry.items.all():
             if item.account.account_type == 'asset' and 'inventory' in item.account.name.lower():
                 # This is an inventory account, update stock
-                from apps.inventory.models import StockMovement, Product
+                from apps.inventory.models import Product
+                from apps.inventory.services import InventoryService
 
                 # Find product by name in description
                 try:
@@ -112,13 +113,13 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
                     product.save()
 
                     # Record stock movement
-                    StockMovement.objects.create(
+                    # Record stock movement via InventoryService
+                    InventoryService.process_transaction(
                         product=product,
-                        movement_type=movement_type,
-                        quantity=quantity,
-                        reference=journal_entry.entry_number,
-                        notes=journal_entry.description,
-                        created_by=request.user
+                        transaction_type='adjustment',
+                        quantity=quantity if movement_type == 'in' else -quantity,
+                        notes=f"{journal_entry.description} (Ref: {journal_entry.entry_number})",
+                        user=request.user
                     )
                 except Product.DoesNotExist:
                     pass
