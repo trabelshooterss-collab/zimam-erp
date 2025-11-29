@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+// تعريف شكل المنتج
 export interface Product {
   id: number;
   name: string;
@@ -10,6 +11,7 @@ export interface Product {
   barcode: string;
 }
 
+// بيانات أولية (عشان السيستم ما يفتحش فاضي)
 const INITIAL_PRODUCTS: Product[] = [
   { id: 1, name: 'iPhone 15 Pro', price: 4500, stock: 5, category: 'electronics', barcode: '1001', image: 'https://images.unsplash.com/photo-1696446701796-da61225697cc?w=400&q=80' },
   { id: 2, name: 'MacBook Air M2', price: 5200, stock: 2, category: 'electronics', barcode: '1002', image: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=400&q=80' },
@@ -30,6 +32,7 @@ interface InventoryContextType {
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
 export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // محاولة استرجاع البيانات من الذاكرة أو استخدام البيانات الأولية
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem('zimam_inventory');
@@ -39,23 +42,28 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   });
 
+  // حفظ أي تغيير
   useEffect(() => {
     localStorage.setItem('zimam_inventory', JSON.stringify(products));
   }, [products]);
 
+  // إضافة منتج
   const addProduct = (product: Omit<Product, 'id'>) => {
     const newProduct = { ...product, id: Date.now() };
     setProducts(prev => [...prev, newProduct]);
   };
 
+  // تعديل منتج
   const updateProduct = (id: number, updatedData: Partial<Product>) => {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updatedData } : p));
   };
 
+  // حذف منتج
   const deleteProduct = (id: number) => {
     setProducts(prev => prev.filter(p => p.id !== id));
   };
 
+  // خصم الكمية عند البيع
   const processSale = (cartItems: any[]) => {
     setProducts(prevProducts => {
       return prevProducts.map(product => {
