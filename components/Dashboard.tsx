@@ -10,35 +10,38 @@ import {
 } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import api from '../services/api';
 
 const Dashboard: React.FC = () => {
   const { theme } = useTheme();
   const { t, language } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
-
-  // Mock Data for Charts
-  const revenueData = [
-    { name: 'Jan', value: 4000 },
-    { name: 'Feb', value: 3000 },
-    { name: 'Mar', value: 2000 },
-    { name: 'Apr', value: 2780 },
-    { name: 'May', value: 1890 },
-    { name: 'Jun', value: 2390 },
-    { name: 'Jul', value: 3490 },
-  ];
-
-  const inventoryData = [
-    { name: 'Rims', value: 400 },
-    { name: 'Tires', value: 300 },
-    { name: 'Oil', value: 300 },
-    { name: 'Brakes', value: 200 },
-  ];
+  const [stats, setStats] = useState({
+    revenue: { value: 0, change: 0, trend: 'up' },
+    orders: { value: 0, change: 0, trend: 'down' },
+    customers: { value: 0, change: 0, trend: 'up' },
+    workOrders: { value: 0, change: 0, trend: 'up' }
+  });
+  const [revenueData, setRevenueData] = useState([]);
+  const [inventoryData, setInventoryData] = useState([]);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
+    const fetchDashboardData = async () => {
+      try {
+        const response = await api.get('/sales/dashboard/stats/');
+        setStats(response.data.stats);
+        setRevenueData(response.data.revenueData);
+        setInventoryData(response.data.inventoryData);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
   const containerVariants = {
@@ -50,6 +53,14 @@ const Dashboard: React.FC = () => {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1, transition: { duration: 0.5 } }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -99,7 +110,7 @@ const Dashboard: React.FC = () => {
                 AI Business Insights
               </h3>
               <p className={`${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'} leading-relaxed`}>
-                Based on your recent sales data, <span className="font-bold text-green-500">Revenue is up 12.5%</span> this week.
+                Based on your recent sales data, <span className="font-bold text-green-500">Revenue is {stats.revenue.trend === 'up' ? 'up' : 'down'} {Math.abs(stats.revenue.change)}%</span> this week.
                 Inventory analysis suggests restocking <span className="font-bold text-blue-500">Michelin Tires</span> within 3 days to avoid stockouts.
                 Consider launching a promotion on <span className="font-bold text-purple-500">Rims</span> to clear slow-moving stock.
               </p>
@@ -114,10 +125,10 @@ const Dashboard: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { title: 'Total Revenue', value: '$58,750', change: '+12.5%', trend: 'up', icon: DollarSign, color: 'blue' },
-          { title: 'Active Orders', value: '1,248', change: '-3.2%', trend: 'down', icon: ShoppingCart, color: 'purple' },
-          { title: 'New Customers', value: '4,256', change: '+8.7%', trend: 'up', icon: Users, color: 'green' },
-          { title: 'Pending Work', value: '152', change: '+15%', trend: 'up', icon: Wrench, color: 'orange' },
+          { title: 'Total Revenue', value: `${stats.revenue.value.toLocaleString()} ${t('currency')}`, change: `${stats.revenue.change}%`, trend: stats.revenue.trend, icon: DollarSign, color: 'blue' },
+          { title: 'Active Orders', value: stats.orders.value.toLocaleString(), change: `${stats.orders.change}%`, trend: stats.orders.trend, icon: ShoppingCart, color: 'purple' },
+          { title: 'New Customers', value: stats.customers.value.toLocaleString(), change: `${stats.customers.change}%`, trend: stats.customers.trend, icon: Users, color: 'green' },
+          { title: 'Pending Work', value: stats.workOrders.value.toLocaleString(), change: `${stats.workOrders.change}%`, trend: stats.workOrders.trend, icon: Wrench, color: 'orange' },
         ].map((stat, index) => (
           <motion.div
             key={index}
@@ -149,9 +160,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-8">
             <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Revenue Overview</h3>
             <select className={`bg-transparent border-none font-bold text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'} focus:ring-0`}>
-              <option>Last 7 Days</option>
-              <option>Last Month</option>
-              <option>Last Year</option>
+              <option>Last 6 Months</option>
             </select>
           </div>
           <div className="h-[300px] w-full">
@@ -191,7 +200,7 @@ const Dashboard: React.FC = () => {
               <BarChart data={inventoryData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={theme === 'dark' ? '#334155' : '#E2E8F0'} />
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: theme === 'dark' ? '#94A3B8' : '#64748B', fontWeight: 600 }} width={60} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: theme === 'dark' ? '#94A3B8' : '#64748B', fontWeight: 600 }} width={80} />
                 <Tooltip
                   cursor={{ fill: 'transparent' }}
                   contentStyle={{

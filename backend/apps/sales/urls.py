@@ -16,4 +16,5 @@ urlpatterns = [
     path('invoices/send-email/<int:pk>/', views.SendInvoiceEmailView.as_view(), name='send-invoice-email'),
     path('invoices/zatca-compliance/<int:pk>/', views.ZATCAComplianceView.as_view(), name='zatca-compliance'),
     path('invoices/eta-compliance/<int:pk>/', views.ETAComplianceView.as_view(), name='eta-compliance'),
+    path('dashboard/stats/', views.DashboardStatsView.as_view(), name='dashboard-stats'),
 ]

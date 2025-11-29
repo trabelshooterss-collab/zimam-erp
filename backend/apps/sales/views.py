@@ -478,3 +478,92 @@ class ETAComplianceView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+class DashboardStatsView(APIView):
+    """View for dashboard statistics."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get dashboard statistics."""
+        user = request.user
+        company = user.company
+        today = timezone.now().date()
+        last_30_days = today - timezone.timedelta(days=30)
+
+        # 1. Revenue (Total Paid Invoices)
+        revenue = Invoice.objects.filter(
+            company=company, 
+            payment_status='paid'
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # 2. Active Orders (Unpaid/Partial Invoices)
+        active_orders = Invoice.objects.filter(
+            company=company
+        ).exclude(payment_status__in=['paid', 'refunded']).count()
+
+        # 3. New Customers (Last 30 Days)
+        new_customers = Customer.objects.filter(
+            company=company,
+            created_at__date__gte=last_30_days
+        ).count()
+
+        # 4. Pending Work (Mock for now, or use Quotes)
+        pending_work = Invoice.objects.filter(
+            company=company,
+            invoice_type='quote'
+        ).count()
+
+        # 5. Revenue Chart Data (Last 6 Months)
+        revenue_data = []
+        for i in range(5, -1, -1):
+            month_start = (today.replace(day=1) - timezone.timedelta(days=i*30)).replace(day=1)
+            month_end = (month_start + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1)
+            
+            month_revenue = Invoice.objects.filter(
+                company=company,
+                payment_status='paid',
+                date__gte=month_start,
+                date__lte=month_end
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+            
+            revenue_data.append({
+                'name': month_start.strftime('%b'),
+                'value': float(month_revenue)
+            })
+
+        # 6. Inventory Status (Low Stock vs Healthy)
+        # We need to import Product dynamically to avoid circular imports if any
+        from apps.inventory.models import Product
+        
+        low_stock_count = Product.objects.filter(
+            company=company,
+            current_stock__lte=models.F('reorder_point')
+        ).count()
+        
+        out_of_stock_count = Product.objects.filter(
+            company=company,
+            current_stock=0
+        ).count()
+        
+        healthy_stock_count = Product.objects.filter(
+            company=company,
+            current_stock__gt=models.F('reorder_point')
+        ).count()
+
+        inventory_data = [
+            {'name': 'Healthy', 'value': healthy_stock_count},
+            {'name': 'Low Stock', 'value': low_stock_count},
+            {'name': 'Out of Stock', 'value': out_of_stock_count},
+        ]
+
+        return Response({
+            'stats': {
+                'revenue': {'value': float(revenue), 'change': 12.5, 'trend': 'up'}, # Change % is mocked for now
+                'orders': {'value': active_orders, 'change': -3.2, 'trend': 'down'},
+                'customers': {'value': new_customers, 'change': 8.7, 'trend': 'up'},
+                'workOrders': {'value': pending_work, 'change': 15, 'trend': 'up'}
+            },
+            'revenueData': revenue_data,
+            'inventoryData': inventory_data
+        })

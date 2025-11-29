@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'zimam.settings')
 django.setup()
 
 from apps.users.models import User
-from apps.sales.models import Customer, SalesOrder, SalesOrderItem
+from apps.sales.models import Customer, Invoice, InvoiceItem
 from apps.inventory.models import Product, Category, InventoryTransaction
 from apps.companies.models import Company
 
@@ -79,19 +79,22 @@ def create_demo_data():
         )
     print(f"✅ Created {len(customers_data)} customers")
 
-    # 4. Create Sales Orders (Invoices)
+    # 4. Create Invoices (Sales Orders)
     customers = Customer.objects.all()
     products = Product.objects.all()
 
-    for _ in range(10):  # Create 10 random orders
+    for _ in range(10):  # Create 10 random invoices
         customer = random.choice(customers)
-        order = SalesOrder.objects.create(
+        invoice = Invoice.objects.create(
             company=company,
             customer=customer,
-            status='completed',
+            invoice_number=f"INV-{random.randint(10000, 99999)}",
+            date=datetime.now().date() - timedelta(days=random.randint(0, 30)),
+            due_date=datetime.now().date() + timedelta(days=30),
             payment_status='paid',
-            total_amount=0, # Will calculate
-            date=datetime.now() - timedelta(days=random.randint(0, 30))
+            subtotal=0,
+            total_amount=0,
+            created_by=None # System created
         )
 
         total = 0
@@ -99,19 +102,22 @@ def create_demo_data():
             product = random.choice(products)
             qty = random.randint(1, 4)
             price = product.selling_price
-            SalesOrderItem.objects.create(
-                order=order,
+            InvoiceItem.objects.create(
+                invoice=invoice,
                 product=product,
+                description=product.name,
                 quantity=qty,
                 unit_price=price,
-                total_price=qty * price
+                total=qty * price
             )
             total += qty * price
         
-        order.total_amount = total
-        order.save()
+        invoice.subtotal = total
+        invoice.total_amount = total
+        invoice.paid_amount = total
+        invoice.save()
     
-    print("✅ Created 10 sales orders")
+    print("✅ Created 10 sales invoices")
     print("🚀 Demo data generation complete!")
 
 if __name__ == '__main__':
